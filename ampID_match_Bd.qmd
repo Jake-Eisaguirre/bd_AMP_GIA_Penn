@@ -1,0 +1,74 @@
+---
+title: "AMP ID Search"
+format: html
+editor: source
+---
+
+## Load Packages
+
+```{r}
+#| output: false
+if (!require(librarian)){
+  install.packages("librarian")
+  library(librarian)
+}
+
+librarian::shelf(tidyverse, RPostgres, DBI, here, stringr)
+
+```
+
+## Connect to `survey_data` schema in `ribbitr` database
+```{r}
+#| output: false
+tryCatch({
+    drv <- dbDriver("Postgres")
+    print("Connecting to Database…")
+    connection <- dbConnect(drv,
+                 dbname = Sys.getenv("aws_dbname"),
+                 host = Sys.getenv("aws_host"),
+                 port = Sys.getenv("aws_port"),
+                 user = Sys.getenv("aws_user"),
+                 password = Sys.getenv("aws_password"),
+                 timezone=NULL)
+    print("Database Connected!")
+    },
+    error=function(cond) {
+            print("Unable to connect to Database.")
+    })
+
+#search path
+dbExecute(connection, "set search_path to survey_data")
+
+```
+
+## Query DB for `bd_swab_id`, `amp_id`, and `average_copy_number`
+```{r}
+
+q <- "select c.bd_swab_id, c.amp_id, c.amp_id_2, bd.average_copy_number
+      from capture c
+      join penn_22_bd_results bd on c.bd_swab_id = bd.bd_swab_id
+      where c.amp_id is not null;"
+
+bd_results <- dbGetQuery(connection, q) %>% 
+  mutate(across(where(is.character), str_to_lower))
+
+
+```
+
+
+## Read in AMP IDs
+```{r}
+
+amp_ids <- read_csv(here("data", "PLE_GIA.csv")) %>% 
+  mutate(across(where(is.character), str_to_lower))
+
+```
+
+## Join Bd results onto Amp ID
+```{r}
+
+final_table <- amp_ids %>% 
+  left_join(bd_results, by = c("amp_id"))
+
+```
+
