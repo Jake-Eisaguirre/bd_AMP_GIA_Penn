@@ -44,10 +44,15 @@ dbExecute(connection, "set search_path to survey_data")
 ## Query DB for `bd_swab_id`, `amp_id`, and `average_copy_number`
 ```{r}
 
-q <- "select c.bd_swab_id, c.amp_id, c.amp_id_2, bd.average_copy_number
-      from capture c
+q <- "select r.region, s.site, v.date, s2.detection_type, c.species_capture, c.svl_mm, c.body_mass_g, c.sex, c.life_stage,
+      c.bd_swab_id, c.amp_id, c.amp_id_2, bd.average_copy_number
+      from region r
+      join site s on r.region_id = s.region_id
+      join visit v on s.site_id = v.site_id
+      join survey s2 on v.visit_id = s2.visit_id
+      join capture c on s2.survey_id = c.survey_id
       join penn_22_bd_results bd on c.bd_swab_id = bd.bd_swab_id
-      where c.amp_id is not null;"
+      where amp_id is not null;"
 
 bd_results <- dbGetQuery(connection, q) %>% 
   mutate(across(where(is.character), str_to_lower))
