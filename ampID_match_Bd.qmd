@@ -45,14 +45,14 @@ dbExecute(connection, "set search_path to survey_data")
 ```{r}
 
 q <- "select r.region, s.site, v.date, s2.detection_type, c.species_capture, c.svl_mm, c.body_mass_g, c.sex, c.life_stage,
-      c.bd_swab_id, c.amp_id, c.amp_id_2, bd.average_copy_number
+      c.bd_swab_id, c.amp_id, bd.average_copy_number
       from region r
       join site s on r.region_id = s.region_id
       join visit v on s.site_id = v.site_id
       join survey s2 on v.visit_id = s2.visit_id
       join capture c on s2.survey_id = c.survey_id
-      join penn_22_bd_results bd on c.bd_swab_id = bd.bd_swab_id
-      where amp_id is not null;"
+      join penn_22_bd_results bd on c.bd_swab_id = bd.bd_swab_id;"
+
 
 bd_results <- dbGetQuery(connection, q) %>% 
   mutate(across(where(is.character), str_to_lower))
@@ -65,7 +65,8 @@ bd_results <- dbGetQuery(connection, q) %>%
 ```{r}
 
 amp_ids <- read_csv(here("data", "PLE_GIA.csv")) %>% 
-  mutate(across(where(is.character), str_to_lower))
+  mutate(across(where(is.character), str_to_lower)) %>% 
+  select(!c(missing))
 
 ```
 
@@ -73,7 +74,14 @@ amp_ids <- read_csv(here("data", "PLE_GIA.csv")) %>%
 ```{r}
 
 final_table <- amp_ids %>% 
-  left_join(bd_results, by = c("amp_id"))
+  left_join(bd_results, by = c("amp_id")) %>% 
+  mutate(amp_id = if_else(amp_id == "ampbath00037", "ampbath00037-NegC", amp_id),
+         amp_id = if_else(amp_id == "ampbath00049", "ampbath00049-NegC", amp_id),
+         amp_id = if_else(amp_id == "ampbath00005", "ampbath00005-Dub", amp_id),
+         amp_id = if_else(amp_id == "ampbath00017", "ampbath00017-Dub", amp_id),
+         amp_id = if_else(amp_id == "ampbath00019", "ampbath00019-Dub", amp_id),
+         amp_id = if_else(amp_id == "ampbath00021", "ampbath00021-Dub", amp_id)) %>% 
+  write_csv(here("GIA_BdResults.csv"))
 
 ```
 
